@@ -47,8 +47,8 @@
   };
 
   const ENEMY_COUNT = 4;
-  const DETECT_RANGE = 17.0;
-  const LOSE_RANGE = 28.0;
+  const DETECT_RANGE = 13.5;
+  const LOSE_RANGE = 24.0;
   const ATTACK_RANGE = 1.58;
   const CHASE_SPEED = 2.85;
   const ENEMY_MAX_HP = 100;
@@ -100,14 +100,14 @@
     const style = document.createElement('style');
     style.id = 'gta04-style';
     style.textContent = [
-      '#gta04-player-hp{position:fixed;left:18px;bottom:22px;z-index:158;width:180px;padding:7px 9px;border-radius:8px;background:rgba(5,8,10,.70);border:1px solid rgba(255,255,255,.16);color:#fff;font:700 10px/1 system-ui,sans-serif;display:none;pointer-events:none}',
+      '#gta04-player-hp{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:158;width:180px;padding:7px 9px;border-radius:8px;background:rgba(5,8,10,.70);border:1px solid rgba(255,255,255,.16);color:#fff;font:700 10px/1 system-ui,sans-serif;display:none;pointer-events:none}',
       '#gta04-player-hp .row{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}',
       '#gta04-player-hp .bar{height:7px;border-radius:5px;background:rgba(255,255,255,.13);overflow:hidden}',
       '#gta04-player-hp .bar i{display:block;height:100%;width:100%;background:#e35345;transform-origin:left center}',
       '#gta04-down{position:fixed;left:50%;top:43%;transform:translate(-50%,-50%);z-index:180;padding:14px 18px;border-radius:9px;background:rgba(10,12,14,.82);border:1px solid rgba(255,90,70,.55);color:#fff;font:800 20px/1 system-ui,sans-serif;letter-spacing:.08em;display:none;pointer-events:none}',
       '.gta04-enemy-hp{position:fixed;z-index:157;width:64px;height:7px;transform:translate(-50%,-100%);border:1px solid rgba(255,255,255,.25);border-radius:4px;background:rgba(0,0,0,.64);overflow:hidden;pointer-events:none;display:none}',
       '.gta04-enemy-hp i{display:block;height:100%;width:100%;background:#d93f36;transform-origin:left center}',
-      '@media(max-width:700px){#gta04-player-hp{left:10px;bottom:12px;width:145px;padding:6px 8px}.gta04-enemy-hp{width:54px;height:6px}}'
+      '@media(max-width:700px){#gta04-player-hp{left:50%;bottom:10px;width:150px;padding:6px 8px}.gta04-enemy-hp{width:54px;height:6px}}'
     ].join('');
     document.head.appendChild(style);
   }
@@ -159,7 +159,7 @@
     const p = Game.player.o.position;
     const baseAngles = [0.30, 1.95, 3.45, 5.05];
     const base = baseAngles[index % baseAngles.length];
-    const radii = [15, 18, 21, 24, 27];
+    const radii = [22, 25, 28, 31, 34];
     for (let ri = 0; ri < radii.length; ri++) {
       const r = radii[ri];
       for (let ai = 0; ai < 8; ai++) {
