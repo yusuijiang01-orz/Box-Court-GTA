@@ -1,32 +1,48 @@
 /* =============================================================
-   GTA-08C steering direction hotfix
+   GTA-08C steering direction hotfix v2
 
-   The GTA-02 vehicle yaw convention is opposite to the screen-left/right
-   sign used by GTA-08C's touch steering buttons. Flip only the touch-drive
-   steering value after GTA-08C has produced it. Desktop WASD is untouched.
+   GTA-08C installs its touch-input wrapper during Game.init(), so the old
+   hotfix ran too early and was overwritten. Install this correction only
+   AFTER the full Game.init chain has completed. Desktop WASD is untouched.
    ============================================================= */
 (function (global) {
   'use strict';
 
   const TOWN = global.TOWN;
-  if (!TOWN || !TOWN.Input || !TOWN.Vehicles || !TOWN.GTA08C) return;
+  if (!TOWN || !TOWN.Game || !TOWN.Input || !TOWN.Vehicles || !TOWN.GTA08C) return;
 
+  const Game = TOWN.Game;
   const Input = TOWN.Input;
   const V = TOWN.Vehicles;
   const C = TOWN.GTA08C;
 
-  if (Input.prototype.update.__gta08cSteerFixed) return;
+  function installFinalSteerFix() {
+    const current = Input.prototype.update;
+    if (!current || current.__gta08cSteerFixedV2) return;
 
-  const baseUpdate = Input.prototype.update;
-  const fixedUpdate = function (dt) {
-    baseUpdate.call(this, dt);
-    const driving = !!(V.STATES && V.state === V.STATES.DRIVING && V.current && V.current.car);
-    if (C.touchCapable && driving && this.state && this.state.move) {
-      this.state.move.x = -this.state.move.x;
-    }
+    const fixed = function (dt) {
+      current.call(this, dt);
+      const driving = !!(V.STATES && V.state === V.STATES.DRIVING && V.current && V.current.car);
+      if (C.touchCapable && driving && this.state && this.state.move) {
+        // GTA-02 positive steer turns screen-left from the chase-camera view.
+        // GTA-08C produces right=+1 / left=-1, so invert once at the FINAL
+        // input stage: left becomes +1 and right becomes -1.
+        this.state.move.x = -this.state.move.x;
+      }
+    };
+    fixed.__gta08cSteerFixedV2 = true;
+    Input.prototype.update = fixed;
+    console.log('[GTA-08C] final touch steering direction fixed');
+  }
+
+  const baseInit = Game.init;
+  Game.init = function () {
+    const out = baseInit.apply(Game, arguments);
+    installFinalSteerFix();
+    return out;
   };
 
-  fixedUpdate.__gta08cSteerFixed = true;
-  Input.prototype.update = fixedUpdate;
-  console.log('[GTA-08C] touch steering direction fixed');
+  // Defensive path for environments where Game.init already ran before this
+  // script executed (hot reload / dev injection).
+  if (C.initialized) installFinalSteerFix();
 })(window);
