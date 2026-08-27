@@ -1,5 +1,5 @@
 /* =============================================================
-   js/game/gta08_ui.js — GTA-08 mobile HUD cleanup v1
+   js/game/gta08_ui.js — GTA-08 mobile HUD cleanup v2
 
    Presentation-only overrides. No gameplay logic is changed.
    ============================================================= */
@@ -10,7 +10,7 @@
 
   const Game = TOWN.Game;
   const UI = TOWN.GTA08 = {
-    version: 'GTA-08.1',
+    version: 'GTA-08.2',
     initialized: false,
   };
 
@@ -27,7 +27,7 @@
       'body.game-play #mission-hud .mh-objective{font-size:12px!important;margin-top:3px!important}',
       'body.game-play #mission-hud .mh-distance{font-size:10px!important}',
 
-      '#gta07-radar-wrap{left:16px!important;bottom:166px!important;width:146px!important;height:146px!important;border-width:1px!important;background:rgba(4,7,10,.58)!important;box-shadow:0 3px 10px rgba(0,0,0,.24)!important}',
+      '#gta07-radar-wrap{left:14px!important;bottom:154px!important;width:128px!important;height:128px!important;border-width:1px!important;background:rgba(4,7,10,.58)!important;box-shadow:0 3px 10px rgba(0,0,0,.24)!important}',
       '#gta07-status{right:14px!important;top:112px!important;min-width:92px!important;padding:3px 2px!important;background:transparent!important;border:0!important;box-shadow:none!important}',
       '#gta07-cash{font-size:16px!important;text-shadow:0 2px 4px rgba(0,0,0,.9)!important}',
       '#gta07-weapon-label{margin-top:3px!important;font-size:9px!important;color:rgba(255,255,255,.88)!important;text-shadow:0 2px 4px rgba(0,0,0,.9)!important}',
@@ -43,7 +43,7 @@
       'body.game-play .actionpad .hud-btn.act[data-name="interact"]{background:rgba(184,98,60,.72)!important;border-color:rgba(255,178,140,.55)!important;color:#fff!important}',
 
       '@media(max-width:700px){',
-      '#gta07-radar-wrap{left:10px!important;bottom:150px!important;width:110px!important;height:110px!important}',
+      '#gta07-radar-wrap{left:10px!important;bottom:144px!important;width:100px!important;height:100px!important}',
       'body.game-play #mission-hud{top:10px!important;left:10px!important;width:min(240px,45vw)!important}',
       '#gta07-status{right:8px!important;top:104px!important}',
       '#gta07-switch{right:136px!important;bottom:146px!important;width:44px!important;height:44px!important}',
@@ -51,9 +51,9 @@
       'body.game-play .actionpad .hud-btn.act[data-name="run"]{width:48px!important;height:48px!important}',
       '}',
 
-      '@media(max-width:900px) and (orientation:landscape) and (max-height:480px){',
-      '#gta07-radar-wrap{left:10px!important;bottom:132px!important;width:104px!important;height:104px!important}',
-      'body.game-play #mission-hud{top:8px!important;left:8px!important;width:min(220px,42vw)!important}',
+      '@media(orientation:landscape) and (max-height:600px){',
+      '#gta07-radar-wrap{left:max(8px,env(safe-area-inset-left))!important;bottom:118px!important;width:96px!important;height:96px!important}',
+      'body.game-play #mission-hud{top:8px!important;left:max(8px,env(safe-area-inset-left))!important;width:min(220px,42vw)!important}',
       'body.game-play #mission-hud .mh-kicker{font-size:8px!important}',
       'body.game-play #mission-hud .mh-title{font-size:13px!important}',
       'body.game-play #mission-hud .mh-objective{font-size:10px!important}',
@@ -61,6 +61,10 @@
       '#gta07-switch{right:126px!important;bottom:126px!important;width:42px!important;height:42px!important}',
       'body.game-play .actionpad .hud-btn.act{width:50px!important;height:50px!important}',
       'body.game-play .actionpad .hud-btn.act[data-name="run"]{width:44px!important;height:44px!important}',
+      '}',
+
+      '@media(pointer:coarse) and (orientation:landscape){',
+      '#gta07-radar-wrap{width:92px!important;height:92px!important;bottom:114px!important}',
       '}'
     ].join('');
     document.head.appendChild(s);
@@ -77,7 +81,7 @@
     UI.initialized = true;
     installStyle();
     refreshRadarSize();
-    console.log('[GTA-08] compact mobile HUD ready');
+    console.log('[GTA-08] compact mobile HUD v2 ready');
   };
 
   const baseInit = Game.init;
