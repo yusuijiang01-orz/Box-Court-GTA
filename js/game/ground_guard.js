@@ -1,18 +1,13 @@
 /* =============================================================
    js/game/ground_guard.js — grounded support validator
 
-   Post-validates Player.update() without replacing the existing movement,
-   stair, collision, jump or camera systems.  The legacy ground sampler can
-   occasionally accept an upward-facing roof / balcony hit slightly above
-   the feet and then repeat that small rise over many frames.  That produces
-   the visible "slow floating" bug.
+   Fixes the legacy ground sampler's "slow floating" failure in two layers:
+   1) remove the player's own body meshes from Player.groundMeshes BEFORE the
+      legacy movement update can raycast them;
+   2) post-validate grounded support without ever accepting a surface above
+      the current feet as a reason to move upward.
 
-   This guard only corrects DOWNWARD.  After the normal player update it asks
-   a stricter question: "is there a real walkable support surface at or just
-   below the CURRENT foot height?"  Surfaces above the feet are never allowed
-   to pull the player upward here.  Real stairs / slopes / decks remain valid
-   because, after a legitimate step-up, their surface is already at the
-   current foot height.
+   This does not replace movement, stairs, collisions, jumping or camera code.
    ============================================================= */
 (function (global) {
   'use strict';
@@ -33,14 +28,57 @@
   const normalMatrix = new T.Matrix3();
   const worldNormal = new T.Vector3();
 
-  // The support query starts only 8 cm above the current feet.  A roof or
-  // balcony that is still above the character therefore cannot become the
-  // new support merely because a long ray happened to see it.
   const SUPPORT_HEADROOM = 0.08;
   const SUPPORT_RAY_LEN = 1.35;
   const ABOVE_FOOT_TOL = 0.045;
   const GROUNDED_GAP_TOL = 0.055;
   const ZERO_VY = 0.025;
+
+  let sanitizedPlayerRoot = null;
+
+  function belongsToPlayer(mesh, playerRoot) {
+    let p = mesh;
+    while (p) {
+      if (p === playerRoot) return true;
+      p = p.parent;
+    }
+    return false;
+  }
+
+  function sanitizeGroundMeshes(st) {
+    if (!st || !st.o || sanitizedPlayerRoot === st.o) return;
+
+    const meshes = Player.groundMeshes;
+    if (!meshes || !meshes.length) {
+      sanitizedPlayerRoot = st.o;
+      return;
+    }
+
+    const clean = [];
+    let removed = 0;
+    for (let i = 0; i < meshes.length; i++) {
+      const mesh = meshes[i];
+      if (mesh && belongsToPlayer(mesh, st.o)) {
+        removed++;
+        continue;
+      }
+      clean.push(mesh);
+    }
+
+    // Player.update reads this exact list for every grounding ray.
+    Player.groundMeshes = clean;
+
+    // shell.js stores the same cache on TOWN.Game. Keep both references in
+    // sync so a later reuse cannot restore the contaminated list.
+    if (TOWN.Game && TOWN.Game.groundMeshes === meshes) {
+      TOWN.Game.groundMeshes = clean;
+    }
+
+    sanitizedPlayerRoot = st.o;
+    if (removed > 0) {
+      console.log('[TOWN] ground mesh fix: removed ' + removed + ' player-self meshes');
+    }
+  }
 
   function strictSupportY(st) {
     const footY = st.o.position.y;
@@ -60,18 +98,14 @@
         if (!h || !h.face || !isFinite(h.point.y)) continue;
 
         const py = h.point.y;
-        // Critical rule: this validator NEVER accepts a surface meaningfully
-        // above the current feet.  It may confirm the surface we already
-        // stepped onto, but it cannot pump us toward a roof one frame at a
-        // time.
+        // This validator never lets geometry above the current feet pull the
+        // player upward. It may only confirm support already under the feet.
         if (py > footY + ABOVE_FOOT_TOL) continue;
 
         normalMatrix.getNormalMatrix(h.object.matrixWorld);
         worldNormal.copy(h.face.normal).applyMatrix3(normalMatrix);
         if (worldNormal.y < 0.60) continue;
 
-        // Ray hits are sorted nearest-first, but keep max-Y explicitly so the
-        // rule stays correct even if the underlying list ordering changes.
         if (py > bestY) {
           bestY = py;
           found = true;
@@ -79,8 +113,8 @@
       }
     }
 
-    // Natural terrain is a valid fallback only on land.  On piers / decks
-    // above water we deliberately do not invent a sea-level support.
+    // Natural terrain is a fallback only on land. On a pier/deck above water,
+    // do not invent sea-level support.
     const isl = TOWN.Island.sample(x, z);
     if (isl && isl.land && isFinite(isl.y) && isl.y <= footY + ABOVE_FOOT_TOL) {
       if (!found || isl.y > bestY) {
@@ -93,13 +127,16 @@
   }
 
   Player.update = function (st, input, camera, dt, et) {
+    // CRITICAL: sanitize before the legacy update. shell.js builds the
+    // walkable list after adding the player to the scene, so descendant body
+    // meshes can otherwise be collected as "ground". A downward ray then hits
+    // the hero's own torso/head and pumps Y upward immediately after spawn.
+    sanitizeGroundMeshes(st);
+
     const out = originalUpdate.call(Player, st, input, camera, dt, et);
     if (!st || !st.o || !st.o.position) return out;
 
-    // Never interfere with a real jump / fall.  The legacy floating failure
-    // normally reports either onGround=true or onGround=false with vy≈0 after
-    // its upward clamp, so both cases are covered without touching normal
-    // airborne motion.
+    // Do not interfere with a real jump/fall.
     const canValidate = st.onGround || Math.abs(st.vy || 0) <= ZERO_VY;
     if (!canValidate) return out;
 
@@ -112,8 +149,6 @@
       st.vy = 0;
       st.onGround = true;
 
-      // Reset the old anti-fly streak after a confirmed correction so it does
-      // not immediately trip its fallback based on stale frames.
       if (st._gg) {
         st._gg.riseStreak = 0;
         st._gg.sawRiseThisFrame = false;
@@ -127,5 +162,5 @@
   };
 
   Player.__groundGuardInstalled = true;
-  console.log('[TOWN] grounded support guard ready');
+  console.log('[TOWN] grounded support guard v2 ready');
 })(window);
