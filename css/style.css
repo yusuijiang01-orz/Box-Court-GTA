@@ -1,0 +1,477 @@
+/* =============================================================
+   style.css — the frame around the diorama.
+   Warm paper-and-ink palette so the UI reads as a museum label
+   rather than a game HUD.
+   ============================================================= */
+:root {
+  --ink: #2a2622;
+  --paper: rgba(252, 249, 242, 0.90);
+  --paper-solid: #fcf9f2;
+  --line: rgba(42, 38, 34, 0.14);
+  --accent: #b8623c;
+  --accent-soft: rgba(184, 98, 60, 0.13);
+  --shadow: 0 6px 26px rgba(30, 24, 18, 0.16), 0 1px 3px rgba(30, 24, 18, 0.12);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%; overflow: hidden;
+  background: #0e1620;
+  font-family: "Hiragino Sans GB", "PingFang SC", "Microsoft YaHei",
+               ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+#scene {
+  position: fixed; inset: 0;
+  width: 100vw; height: 100vh;
+  display: block;
+  touch-action: none;
+}
+
+/* a subtle vignette sells the "object under glass" feeling */
+body::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 3;
+  background: radial-gradient(ellipse at 50% 46%,
+    rgba(0,0,0,0) 52%, rgba(10,8,6,0.16) 82%, rgba(8,6,4,0.34) 100%);
+}
+
+/* ---------------- loading ---------------- */
+#loading {
+  position: fixed; inset: 0; z-index: 40;
+  display: grid; place-items: center;
+  background: linear-gradient(170deg, #12212e 0%, #1d2b33 45%, #2b3129 100%);
+  transition: opacity .6s ease;
+}
+#loading.done { opacity: 0; }
+.load-inner { text-align: center; color: #f2ece0; }
+.load-title { font-size: 34px; letter-spacing: .32em; font-weight: 500; }
+.load-sub {
+  font-size: 11px; letter-spacing: .42em; text-transform: uppercase;
+  opacity: .55; margin: 8px 0 26px;
+}
+.load-track {
+  width: 240px; height: 2px; margin: 0 auto 14px;
+  background: rgba(242, 236, 224, 0.18); border-radius: 2px; overflow: hidden;
+}
+#loadbar {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #e8b06a, #d9825a);
+  transition: width .3s ease;
+}
+#loadtext { font-size: 11.5px; letter-spacing: .18em; opacity: .62; }
+
+/* ---------------- title card ---------------- */
+#titlecard {
+  position: fixed; top: 22px; left: 24px; z-index: 6;
+  color: var(--paper-solid);
+  text-shadow: 0 2px 12px rgba(0,0,0,.55), 0 1px 2px rgba(0,0,0,.5);
+  pointer-events: none;
+}
+#titlecard h1 {
+  margin: 0; font-size: 25px; font-weight: 500; letter-spacing: .2em;
+}
+#titlecard p {
+  margin: 5px 0 0; font-size: 11.5px; letter-spacing: .2em; opacity: .8;
+}
+#fps {
+  margin-top: 9px; font-size: 10.5px; letter-spacing: .1em; opacity: .58;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- panel ---------------- */
+#panel {
+  position: fixed; top: 18px; right: 18px; z-index: 8;
+  width: 254px; max-height: calc(100vh - 36px);
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 15px 16px 17px;
+  background: var(--paper);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid rgba(255,255,255,.5);
+  border-radius: 13px;
+  box-shadow: var(--shadow);
+  transition: transform .38s cubic-bezier(.4,0,.2,1), opacity .3s ease;
+}
+body.panel-hidden #panel { transform: translateX(calc(100% + 26px)); opacity: 0; }
+
+#panel::-webkit-scrollbar { width: 6px; }
+#panel::-webkit-scrollbar-thumb { background: rgba(42,38,34,.2); border-radius: 3px; }
+
+#panel section { margin-bottom: 15px; }
+#panel section:last-child { margin-bottom: 2px; }
+#panel h2 {
+  margin: 0 0 8px; font-size: 10px; font-weight: 600;
+  letter-spacing: .26em; text-transform: uppercase;
+  color: rgba(42,38,34,.5);
+  border-bottom: 1px solid var(--line); padding-bottom: 6px;
+}
+
+#timelabel {
+  font-size: 17px; letter-spacing: .06em; margin-bottom: 9px;
+  font-variant-numeric: tabular-nums;
+}
+.slab {
+  display: block; font-size: 10.5px; letter-spacing: .14em;
+  color: rgba(42,38,34,.55); margin: 11px 0 5px;
+}
+.slab span { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+/* sliders */
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 20px; background: transparent; cursor: pointer; margin: 0;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 3px; border-radius: 3px;
+  background: linear-gradient(90deg, #2e3d55 0%, #6c86a8 22%, #f0c98a 40%,
+              #9fc6e4 52%, #f0b276 70%, #b8663f 80%, #2c3550 100%);
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 15px; height: 15px; margin-top: -6px; border-radius: 50%;
+  background: var(--paper-solid); border: 2px solid var(--accent);
+  box-shadow: 0 1px 5px rgba(0,0,0,.28);
+}
+input[type=range]::-moz-range-track {
+  height: 3px; border-radius: 3px; background: #b9b2a4;
+}
+input[type=range]::-moz-range-thumb {
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--paper-solid); border: 2px solid var(--accent);
+}
+#speed::-webkit-slider-runnable-track { background: #c3bcae; }
+
+/* buttons */
+.row { display: flex; gap: 6px; margin-top: 7px; }
+.row.wrap { flex-wrap: wrap; }
+#panel button, #btn-collapse {
+  font-family: inherit; font-size: 11.5px; letter-spacing: .06em;
+  color: var(--ink); cursor: pointer;
+  padding: 6px 9px;
+  background: rgba(255,255,255,.62);
+  border: 1px solid var(--line); border-radius: 7px;
+  transition: background .16s ease, border-color .16s ease, color .16s ease;
+  flex: 1 1 auto; min-width: 52px;
+}
+#panel button:hover { background: #fff; border-color: rgba(42,38,34,.28); }
+#panel button.on {
+  background: var(--accent-soft); border-color: rgba(184,98,60,.5);
+  color: var(--accent); font-weight: 600;
+}
+#panel button.wide { flex: 1 1 100%; }
+
+#btn-collapse {
+  position: fixed; top: 18px; right: 284px; z-index: 9;
+  width: 26px; height: 26px; min-width: 0; padding: 0;
+  display: grid; place-items: center;
+  background: var(--paper); border-radius: 50%;
+  box-shadow: var(--shadow); font-size: 15px; line-height: 1;
+  transition: right .38s cubic-bezier(.4,0,.2,1);
+}
+body.panel-hidden #btn-collapse { right: 18px; }
+
+.hint p {
+  margin: 4px 0 0; font-size: 10.5px; line-height: 1.65;
+  color: rgba(42,38,34,.55); letter-spacing: .03em;
+}
+
+/* ---------------- small screens ---------------- */
+@media (max-width: 760px) {
+  #panel { width: calc(100vw - 28px); right: 14px; top: auto; bottom: 14px; max-height: 46vh; }
+  #btn-collapse { right: 14px; top: 14px; }
+  body.panel-hidden #panel { transform: translateY(calc(100% + 26px)); }
+  #titlecard h1 { font-size: 20px; }
+  #titlecard p { font-size: 10px; }
+}
+
+/* =============================================================
+   GAME UI — start screen, settings, HUD, dialogue
+   Same warm paper-and-ink language as the diorama panel.
+   ============================================================= */
+
+/* in game modes, the diorama-only chrome is hidden by default;
+   the shell shows/hides .hidden explicitly and toggles body classes */
+body.game-start #titlecard,
+body.game-play  #titlecard { opacity: .5; }
+body.game-start #panel,
+body.game-start #btn-collapse { display: none !important; }
+body.game-play #panel,
+body.game-play #btn-collapse { display: none !important; }
+
+.hidden { display: none !important; }
+
+/* ---------------- overlay screens (start / settings) ---------------- */
+.screen {
+  position: fixed; inset: 0; z-index: 30;
+  display: grid; place-items: center;
+  background: linear-gradient(160deg, rgba(18,33,46,.78) 0%, rgba(43,49,41,.72) 100%);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  padding: 24px;
+  overflow-y: auto;
+}
+.screen-card {
+  width: min(440px, 92vw);
+  background: var(--paper);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid rgba(255,255,255,.5);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 30px 26px 26px;
+  text-align: center;
+  color: var(--ink);
+}
+.screen-card.wide { width: min(520px, 94vw); text-align: left; padding: 22px 24px 20px; }
+
+.screen-eyebrow {
+  font-size: 11px; letter-spacing: .42em; text-transform: uppercase;
+  color: rgba(42,38,34,.5); margin-bottom: 8px;
+}
+.screen-title {
+  margin: 0; font-size: 40px; font-weight: 500; letter-spacing: .18em;
+}
+.screen-sub {
+  margin: 8px 0 22px; font-size: 12px; letter-spacing: .2em;
+  color: rgba(42,38,34,.6);
+}
+.screen-actions { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
+.screen-hint {
+  margin-top: 20px; font-size: 11px; line-height: 1.7;
+  color: rgba(42,38,34,.5); letter-spacing: .03em;
+}
+
+/* generic buttons used by screens + HUD */
+.btn {
+  font-family: inherit; font-size: 14px; letter-spacing: .1em;
+  color: var(--ink); cursor: pointer;
+  padding: 12px 14px; border-radius: 10px;
+  background: rgba(255,255,255,.66);
+  border: 1px solid var(--line);
+  transition: background .15s ease, transform .1s ease, border-color .15s ease;
+}
+.btn:hover { background: #fff; border-color: rgba(42,38,34,.28); }
+.btn:active { transform: translateY(1px) scale(.99); }
+.btn.primary {
+  background: var(--accent); border-color: var(--accent);
+  color: #fff7f0; font-weight: 600;
+}
+.btn.primary:hover { background: #c9704a; }
+.btn.ghost { background: transparent; }
+.btn.icon {
+  padding: 0; width: 34px; height: 34px; min-width: 0;
+  display: grid; place-items: center; font-size: 20px; line-height: 1;
+  border-radius: 50%;
+}
+
+.screen-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.screen-head h2 { margin: 0; font-size: 18px; letter-spacing: .14em; font-weight: 500; }
+.set-sec { margin-bottom: 18px; }
+.set-sec h3 {
+  margin: 0 0 9px; font-size: 10px; font-weight: 600; letter-spacing: .26em;
+  text-transform: uppercase; color: rgba(42,38,34,.5);
+  border-bottom: 1px solid var(--line); padding-bottom: 6px;
+}
+.set-time {
+  font-size: 18px; letter-spacing: .06em; margin-bottom: 9px;
+  font-variant-numeric: tabular-nums;
+}
+#settings .row { display: flex; gap: 7px; margin-top: 9px; }
+#settings .row.wrap { flex-wrap: wrap; }
+#settings .row button {
+  font-family: inherit; font-size: 12px; letter-spacing: .06em;
+  color: var(--ink); cursor: pointer;
+  padding: 8px 10px; background: rgba(255,255,255,.62);
+  border: 1px solid var(--line); border-radius: 8px;
+  flex: 1 1 auto; min-width: 52px; transition: background .15s ease;
+}
+#settings .row button.wide { flex: 1 1 100%; }
+#settings .row button.ghost { background: transparent; }
+#settings .row button:hover { background: #fff; }
+#settings .row button.on {
+  background: var(--accent-soft); border-color: rgba(184,98,60,.5);
+  color: var(--accent); font-weight: 600;
+}
+#settings input[type=range] { margin-top: 2px; }
+
+/* ---------------- HUD ---------------- */
+.hud {
+  position: fixed; inset: 0; z-index: 20;
+  pointer-events: none;            /* children opt back in */
+  user-select: none; -webkit-user-select: none;
+}
+.topbar {
+  position: fixed; top: 14px; right: 14px; left: 14px;
+  display: flex; gap: 8px; align-items: center;
+  pointer-events: none;
+  justify-content: flex-end;
+}
+/* swap the orbit icon for a "return to game" label while in diorama mode.
+   Selectors are hyper-specific (body.in-diorama #hud button#hud-orbit) so
+   the .hud-btn base styles never win. */
+body.in-diorama #hud button#hud-orbit .ic { display: none; }
+body.in-diorama #hud button#hud-orbit::after {
+  content: '返回游戏';
+  font-size: 12px; font-weight: 600; letter-spacing: .08em;
+  pointer-events: none;
+}
+body.in-diorama #hud button#hud-orbit {
+  width: auto !important;
+  height: 40px !important;
+  padding: 0 14px !important;
+  border-radius: 999px !important;
+  background: var(--accent) !important;
+  background-color: var(--accent) !important;
+  background-image: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border-color: var(--accent) !important;
+  color: #fff7f0 !important;
+  box-shadow: 0 4px 14px rgba(184,98,60,.4) !important;
+}
+/* hide joystick + action pad during diorama (topbar remains) */
+body.in-diorama .joy, body.in-diorama .actionpad { display: none !important; }
+.timechip {
+  pointer-events: auto;
+  font-size: 12px; letter-spacing: .08em; color: var(--ink);
+  background: var(--paper);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.5);
+  border-radius: 999px; padding: 7px 13px;
+  box-shadow: var(--shadow);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.hud-btn {
+  pointer-events: auto;
+  font-family: inherit; cursor: pointer;
+  display: grid; place-items: center;
+  background: var(--paper);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.5);
+  border-radius: 50%;
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  transition: transform .12s ease, background .15s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+.hud-btn.gear,
+.topbar > .hud-btn:not(.gear) { width: 40px; height: 40px; }
+.topbar > .hud-btn .ic { width: 20px; height: 20px; pointer-events: none; }
+.hud-btn.gear { font-size: 18px; }
+
+/* joystick */
+.joy {
+  position: fixed; left: 26px; bottom: 30px;
+  width: 128px; height: 128px;
+  pointer-events: auto; touch-action: none;
+}
+.joy-base {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 45%, rgba(255,255,255,.20), rgba(252,249,242,.10));
+  border: 1px solid rgba(255,255,255,.35);
+  box-shadow: var(--shadow), inset 0 1px 2px rgba(255,255,255,.4);
+  transition: background .15s ease;
+}
+.joy.active .joy-base {
+  background: radial-gradient(circle at 50% 45%, rgba(184,98,60,.18), rgba(252,249,242,.12));
+}
+.joy-knob {
+  position: absolute; left: 50%; top: 50%;
+  width: 52px; height: 52px; margin: -26px 0 0 -26px;
+  border-radius: 50%;
+  background: var(--paper-solid);
+  border: 2px solid var(--accent);
+  box-shadow: 0 4px 12px rgba(30,24,18,.28);
+  transform: translate(-50%,-50%);
+  transition: transform .0s linear;
+}
+
+/* action buttons (bottom-right) */
+.actionpad {
+  position: fixed; right: 22px; bottom: 30px;
+  width: 168px; height: 168px;
+  pointer-events: none;
+}
+.actionpad .hud-btn.act {
+  position: absolute;
+  width: 62px; height: 62px;
+  font-size: 0;                 /* icon-only buttons */
+  display: grid; place-items: center;
+  pointer-events: auto;
+}
+.actionpad .hud-btn.act .ic {
+  width: 30px; height: 30px;
+  pointer-events: none;
+}
+.actionpad .hud-btn.act[data-name="run"]      { right: 96px; bottom: 8px;  width: 54px; height: 54px; }
+.actionpad .hud-btn.act[data-name="run"] .ic  { width: 25px; height: 25px; }
+.actionpad .hud-btn.act[data-name="jump"]     { right: 40px; bottom: 64px; }
+.actionpad .hud-btn.act[data-name="attack"]   { right: 104px; bottom: 86px; }
+.actionpad .hud-btn.act[data-name="interact"] { right: 0; bottom: 0; background: var(--accent); border-color: var(--accent); color: #fff7f0; }
+.actionpad .hud-btn.act[data-name="interact"] .ic { width: 28px; height: 28px; }
+.actionpad .hud-btn.act.active { transform: scale(.92); background: var(--accent-soft); border-color: rgba(184,98,60,.6); color: var(--accent); }
+.actionpad .hud-btn.act[data-name="interact"].active { background: #c9704a; color: #fff7f0; }
+
+/* ---------------- dialogue ---------------- */
+.dialogue {
+  position: fixed; left: 50%; bottom: 30px;
+  transform: translateX(-50%);
+  width: min(560px, 92vw); z-index: 25;
+  pointer-events: auto; cursor: pointer;
+}
+.dlg-inner {
+  background: var(--paper);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid rgba(255,255,255,.5);
+  border-left: 4px solid var(--accent);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 16px 20px 14px;
+}
+.dlg-name {
+  font-size: 13px; font-weight: 600; letter-spacing: .1em;
+  color: var(--accent); margin-bottom: 6px;
+}
+.dlg-line {
+  font-size: 15px; line-height: 1.7; color: var(--ink);
+  letter-spacing: .02em;
+}
+.dlg-hint {
+  margin-top: 10px; font-size: 10.5px; letter-spacing: .18em;
+  color: rgba(42,38,34,.4); text-transform: uppercase;
+}
+
+/* ---------------- speech bubbles ---------------- */
+.bubble-layer { position: fixed; inset: 0; z-index: 21; pointer-events: none; }
+.bubble {
+  position: absolute; top: 0; left: 0;
+  transform: translate(-50%,-100%);
+  background: var(--paper-solid);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 4px 10px;
+  font-size: 12px; color: var(--ink);
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+}
+.bubble.react { background: #fff3e8; border-color: rgba(184,98,60,.4); color: var(--accent); font-weight: 600; }
+.bubble.set    { background: var(--paper-solid); color: rgba(42,38,34,.65); font-size: 11px; }
+
+/* ---------------- landscape phone tweaks ---------------- */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 480px) {
+  .joy { width: 108px; height: 108px; left: 18px; bottom: 16px; }
+  .joy-knob { width: 44px; height: 44px; margin: -22px 0 0 -22px; }
+  .actionpad { width: 150px; height: 150px; right: 14px; bottom: 14px; }
+  .actionpad .hud-btn.act { width: 54px; height: 54px; font-size: 16px; }
+  .dialogue { bottom: 14px; }
+}
