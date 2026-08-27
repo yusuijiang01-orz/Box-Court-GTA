@@ -137,13 +137,35 @@
     return g;
   }
 
+  function cloneVisual(src) {
+    let dst;
+    if (src.isMesh) {
+      dst = new T.Mesh(src.geometry, src.material);
+    } else if (src.isSprite) {
+      dst = new T.Sprite(src.material);
+    } else {
+      dst = new T.Group();
+    }
+    dst.name = src.name || '';
+    dst.position.copy(src.position);
+    dst.quaternion.copy(src.quaternion);
+    dst.scale.copy(src.scale);
+    dst.visible = src.visible;
+    dst.renderOrder = src.renderOrder || 0;
+    for (let i = 0; i < src.children.length; i++) {
+      dst.add(cloneVisual(src.children[i]));
+    }
+    return dst;
+  }
+
   function makeDriverProxy(car, interior) {
     if (!car || !interior || !Game.player || !Game.player.o) return null;
     if (car.userData.gtaDriverProxy) return car.userData.gtaDriverProxy;
 
-    // Clone only the visual hierarchy. The real player state remains separate
-    // and continues following the car for mission / gameplay coordinates.
-    const clone = Game.player.o.clone(true);
+    // Copy only renderable transforms/geometry/materials. Player.userData holds
+    // live Object3D references, so THREE.Object3D.clone(true) is intentionally
+    // avoided here; serialising that gameplay metadata can be circular.
+    const clone = cloneVisual(Game.player.o);
     clone.name = 'gta02b-driver';
     clone.visible = true;
 
