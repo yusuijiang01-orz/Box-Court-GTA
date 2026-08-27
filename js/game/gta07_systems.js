@@ -224,11 +224,19 @@
     global.addEventListener('wheel', function (e) {
       if (Game.mode !== 'play' || Game.settingsOpen || isDriving()) return;
       const now = Date.now ? Date.now() : 0;
-      if (now && now < G.wheelLockUntil) return;
+      if (now && now < G.wheelLockUntil) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
       if (Math.abs(e.deltaY) < 2) return;
       G.wheelLockUntil = now ? now + 180 : 0;
       G.cycleWeapon(e.deltaY > 0 ? 1 : -1);
-    }, { passive: true, capture: true });
+      // In gameplay the wheel is the weapon selector. Prevent the older
+      // follow-camera wheel handler from zooming at the same time.
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }, { passive: false, capture: true });
 
     global.addEventListener('resize', resizeRadar);
   }
@@ -349,17 +357,17 @@
     drawRoads(ctx, anchor, cx, cy, radius);
 
     const mission = currentMissionPoint();
-    if (mission) drawPoint(ctx, worldToRadar(mission.x, mission.z, anchor, radius), cx, cy, radius, 4.2, '#ffd21a', 'diamond');
+    if (mission) drawPoint(ctx, worldToRadar(mission.x, mission.z, anchor, radius), cx, cy, radius, radius * 0.026, '#ffd21a', 'diamond');
 
     forEachVehicle(function (x, z) {
-      drawPoint(ctx, worldToRadar(x, z, anchor, radius), cx, cy, radius, 2.5, '#d8e3e9', 'circle');
+      drawPoint(ctx, worldToRadar(x, z, anchor, radius), cx, cy, radius, radius * 0.016, '#d8e3e9', 'circle');
     });
 
     if (EnemyAI && EnemyAI.enemies) {
       for (let i = 0; i < EnemyAI.enemies.length; i++) {
         const e = EnemyAI.enemies[i];
         if (!e || !e.o || !e.o.visible || (EnemyAI.STATES && e.state === EnemyAI.STATES.DEAD)) continue;
-        drawPoint(ctx, worldToRadar(e.o.position.x, e.o.position.z, anchor, radius), cx, cy, radius, 3.0, '#e64b43', 'circle');
+        drawPoint(ctx, worldToRadar(e.o.position.x, e.o.position.z, anchor, radius), cx, cy, radius, radius * 0.019, '#e64b43', 'circle');
       }
     }
 
@@ -367,13 +375,14 @@
       for (let i = 0; i < Wanted.police.length; i++) {
         const p = Wanted.police[i];
         if (!p || !p.o || !p.o.visible || (Wanted.POLICE_STATES && p.state === Wanted.POLICE_STATES.DEAD)) continue;
-        drawPoint(ctx, worldToRadar(p.o.position.x, p.o.position.z, anchor, radius), cx, cy, radius, 3.0, '#62a9ff', 'circle');
+        drawPoint(ctx, worldToRadar(p.o.position.x, p.o.position.z, anchor, radius), cx, cy, radius, radius * 0.019, '#62a9ff', 'circle');
       }
     }
 
     ctx.save(); ctx.translate(cx, cy);
-    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = 'rgba(0,0,0,.85)'; ctx.lineWidth = 1.7;
-    ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(5.6, 6); ctx.lineTo(0, 3.4); ctx.lineTo(-5.6, 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = 'rgba(0,0,0,.85)'; ctx.lineWidth = Math.max(1.3, radius * 0.010);
+    const ah = radius * 0.052, aw = radius * 0.034;
+    ctx.beginPath(); ctx.moveTo(0, -ah); ctx.lineTo(aw, ah * 0.72); ctx.lineTo(0, ah * 0.40); ctx.lineTo(-aw, ah * 0.72); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.restore();
 
     ctx.restore();
