@@ -3,7 +3,9 @@
 
    Lightweight presentation upgrade layered on GTA-02:
    - simple cabin: floor, seats, dashboard and steering wheel;
-   - visible seated driver proxy through the existing transparent glass;
+   - vehicle-only transparent glazing (building window materials untouched);
+   - cut real window openings out of the original opaque cabin shell;
+   - visible seated driver proxy through the glass;
    - toggle third-person / cockpit camera while driving;
    - no door animation, IK, detailed gauges or new vehicle physics.
    ============================================================= */
@@ -18,7 +20,7 @@
   const V = TOWN.Vehicles;
 
   const B = TOWN.VehicleInterior = {
-    version: 'GTA-02B.1',
+    version: 'GTA-02B.2',
     view: 'third',
     car: null,
     driver: null,
@@ -28,7 +30,14 @@
 
   const tmpEye = new T.Vector3();
   const tmpLook = new T.Vector3();
-  const tmpWorld = new T.Vector3();
+
+  const CABIN = {
+    kei:   { bh: 0.50, ch: 0.62, cabZ: -0.02, cabL: 0.58 },
+    sedan: { bh: 0.56, ch: 0.56, cabZ: -0.14, cabL: 0.50 },
+    van:   { bh: 0.66, ch: 0.86, cabZ: -0.04, cabL: 0.70 },
+    truck: { bh: 0.70, ch: 0.80, cabZ:  0.24, cabL: 0.32 },
+    bus:   { bh: 0.98, ch: 1.42, cabZ:  0.00, cabL: 0.88 },
+  };
 
   const MAT = {
     cabin: new T.MeshStandardMaterial({ color: 0x24282d, roughness: 0.88, metalness: 0.02 }),
@@ -36,7 +45,18 @@
     dash: new T.MeshStandardMaterial({ color: 0x15191d, roughness: 0.76, metalness: 0.08 }),
     trim: new T.MeshStandardMaterial({ color: 0x59616a, roughness: 0.52, metalness: 0.38 }),
     gauge: new T.MeshBasicMaterial({ color: 0xb9d7d0 }),
+    glass: new T.MeshStandardMaterial({
+      color: 0x78a5ba,
+      roughness: 0.08,
+      metalness: 0.02,
+      transparent: true,
+      opacity: 0.28,
+      depthWrite: false,
+      depthTest: true,
+      side: T.DoubleSide,
+    }),
   };
+  MAT.glass.name = 'gta_vehicle_glass';
 
   function dims(car) {
     const fp = car && car.userData && car.userData.footprint;
@@ -45,6 +65,11 @@
       d: fp && isFinite(fp.d) ? fp.d : 4.2,
       h: car && car.userData && isFinite(car.userData.height) ? car.userData.height : 1.5,
     };
+  }
+
+  function cabinSpec(car) {
+    const type = car && car.userData ? car.userData.type : 'sedan';
+    return CABIN[type] || CABIN.sedan;
   }
 
   function meshBox(w, h, d, mat, x, y, z) {
@@ -68,6 +93,143 @@
     }
   }
 
+  function copyKeptTriangles(src, keepTri) {
+    const non = src.index ? src.toNonIndexed() : src.clone();
+    const attrs = non.attributes || {};
+    const names = Object.keys(attrs);
+    const pos = attrs.position;
+    if (!pos || pos.count < 3) return non;
+
+    const outData = {};
+    for (let n = 0; n < names.length; n++) outData[names[n]] = [];
+
+    const triCount = Math.floor(pos.count / 3);
+    for (let t = 0; t < triCount; t++) {
+      const i0 = t * 3;
+      const cx = (pos.getX(i0) + pos.getX(i0 + 1) + pos.getX(i0 + 2)) / 3;
+      const cy = (pos.getY(i0) + pos.getY(i0 + 1) + pos.getY(i0 + 2)) / 3;
+      const cz = (pos.getZ(i0) + pos.getZ(i0 + 1) + pos.getZ(i0 + 2)) / 3;
+      if (!keepTri(cx, cy, cz)) continue;
+
+      for (let v = 0; v < 3; v++) {
+        const idx = i0 + v;
+        for (let n = 0; n < names.length; n++) {
+          const name = names[n];
+          const a = attrs[name];
+          const dst = outData[name];
+          const base = idx * a.itemSize;
+          for (let c = 0; c < a.itemSize; c++) dst.push(a.array[base + c]);
+        }
+      }
+    }
+
+    const out = new T.BufferGeometry();
+    for (let n = 0; n < names.length; n++) {
+      const name = names[n];
+      const a = attrs[name];
+      const Arr = a.array.constructor;
+      out.setAttribute(name, new T.BufferAttribute(new Arr(outData[name]), a.itemSize, a.normalized));
+    }
+    if (!out.attributes.normal && out.attributes.position) out.computeVertexNormals();
+    out.computeBoundingBox();
+    out.computeBoundingSphere();
+    return out;
+  }
+
+  function cutOpaqueCabin(car, bodyMesh) {
+    if (!bodyMesh || !bodyMesh.geometry || bodyMesh.userData.gtaCabinCut) return;
+
+    const d = dims(car);
+    const p = cabinSpec(car);
+    const bodyW = d.w / 1.08;
+    const cabW = bodyW * 0.90;
+    const cabLen = d.d * p.cabL;
+    const cabCenterZ = d.d * p.cabZ;
+    const wheelR = car.userData.wheelR || 0.34;
+    const belt = wheelR * 0.46 + 0.10 + p.bh;
+    const top = belt + p.ch;
+
+    const sideMinX = cabW * 0.34;
+    const sideMaxX = cabW * 0.555;
+    const zHalf = cabLen * 0.54;
+    const glassStart = belt + Math.max(0.045, p.ch * 0.04);
+    const glassEnd = top - Math.max(0.07, p.ch * 0.10);
+
+    const cut = copyKeptTriangles(bodyMesh.geometry, function (x, y, z) {
+      if (y < glassStart || y > glassEnd) return true;
+      const rz = z - cabCenterZ;
+      if (Math.abs(rz) > zHalf) return true;
+
+      const ax = Math.abs(x);
+      const sideWindow = ax > sideMinX && ax < sideMaxX;
+      const frontWindow = rz > cabLen * 0.30 && ax < cabW * 0.53;
+      const rearWindow = rz < -cabLen * 0.30 && ax < cabW * 0.53;
+      return !(sideWindow || frontWindow || rearWindow);
+    });
+
+    bodyMesh.geometry = cut;
+    bodyMesh.userData.gtaCabinCut = true;
+  }
+
+  function addCabinFrame(car, parent) {
+    if (car.userData.gtaCabinFrame) return;
+    const d = dims(car);
+    const p = cabinSpec(car);
+    const bodyW = d.w / 1.08;
+    const cabW = bodyW * 0.90;
+    const cabLen = d.d * p.cabL;
+    const cz = d.d * p.cabZ;
+    const wheelR = car.userData.wheelR || 0.34;
+    const belt = wheelR * 0.46 + 0.10 + p.bh;
+    const top = belt + p.ch;
+    const h = Math.max(0.28, top - belt);
+    const frame = new T.Group();
+    frame.name = 'gta02b-cabin-frame';
+    const frameMat = new T.MeshStandardMaterial({
+      color: car.userData.color === undefined ? 0x5f6b72 : car.userData.color,
+      roughness: 0.58,
+      metalness: 0.06,
+    });
+
+    const px = cabW * 0.47;
+    const pz = cabLen * 0.43;
+    const pillarW = Math.max(0.055, bodyW * 0.045);
+    for (let sx = -1; sx <= 1; sx += 2) {
+      for (let sz = -1; sz <= 1; sz += 2) {
+        frame.add(meshBox(pillarW, h * 0.88, pillarW, frameMat,
+          sx * px, belt + h * 0.45, cz + sz * pz));
+      }
+    }
+    frame.add(meshBox(cabW * 0.94, 0.065, 0.075, frameMat, 0, top - 0.08, cz + pz));
+    frame.add(meshBox(cabW * 0.94, 0.065, 0.075, frameMat, 0, top - 0.08, cz - pz));
+    parent.add(frame);
+    car.userData.gtaCabinFrame = frame;
+  }
+
+  function upgradeCabinShell(car) {
+    if (!car || !car.userData || car.userData.gtaCabinUpgraded) return;
+    const shell = car.userData.body;
+    if (!shell) return;
+
+    let bodyMesh = null;
+    const glassMeshes = [];
+    for (let i = 0; i < shell.children.length; i++) {
+      const o = shell.children[i];
+      if (!o || !o.isMesh) continue;
+      const mn = o.material && o.material.name ? o.material.name : '';
+      if (mn.indexOf('window_') === 0) glassMeshes.push(o);
+      else if (!bodyMesh && mn === 'dyn_paint') bodyMesh = o;
+    }
+
+    if (bodyMesh) cutOpaqueCabin(car, bodyMesh);
+    for (let i = 0; i < glassMeshes.length; i++) {
+      glassMeshes[i].material = MAT.glass;
+      glassMeshes[i].renderOrder = 3;
+      glassMeshes[i].castShadow = false;
+    }
+    car.userData.gtaCabinUpgraded = true;
+  }
+
   function buildInterior(car) {
     if (!car || !car.userData) return null;
     if (car.userData.gtaInterior) return car.userData.gtaInterior;
@@ -83,17 +245,14 @@
     const driverX = -Math.min(d.w * 0.22, 0.42);
     const passengerX = -driverX;
 
-    // Floor / centre tunnel.
     g.add(meshBox(cabinW, 0.07, cabinD, MAT.cabin, 0, floorY, -d.d * 0.02));
     g.add(meshBox(0.18, 0.16, cabinD * 0.72, MAT.dash, 0, floorY + 0.09, -d.d * 0.02));
 
-    // Dashboard and shallow instrument binnacle.
     const dashY = Math.max(0.76, Math.min(1.03, d.h * 0.58));
     g.add(meshBox(cabinW * 0.96, 0.17, Math.max(0.18, d.d * 0.08), MAT.dash,
       0, dashY, d.d * 0.205));
     g.add(meshBox(0.38, 0.12, 0.08, MAT.cabin, driverX, dashY + 0.10, d.d * 0.166));
 
-    // Two tiny luminous gauge faces — intentionally abstract, not a real UI.
     for (let i = -1; i <= 1; i += 2) {
       const q = new T.Mesh(new T.CircleGeometry(0.055, 12), MAT.gauge);
       q.position.set(driverX + i * 0.075, dashY + 0.105, d.d * 0.122);
@@ -101,7 +260,6 @@
       g.add(q);
     }
 
-    // Steering wheel. Torus is already in the XY plane, facing the driver.
     const wheel = new T.Mesh(new T.TorusGeometry(0.17, 0.026, 6, 18), MAT.trim);
     wheel.position.set(driverX, dashY + 0.01, d.d * 0.085);
     wheel.rotation.x = -0.28;
@@ -111,7 +269,6 @@
     spokeV.rotation.x = -0.28;
     g.add(spokeV);
 
-    // Front seats. Larger vehicles also get a low rear bench, still very cheap.
     const seatScale = Math.max(0.82, Math.min(1.08, d.w / 1.85));
     addSeat(g, driverX, frontZ - 0.18, seatScale, true);
     addSeat(g, passengerX, frontZ - 0.18, seatScale, true);
@@ -123,7 +280,8 @@
       g.add(rearBack);
     }
 
-    // A few userData anchors make later upgrades easy without changing physics.
+    addCabinFrame(car, g);
+
     g.userData.driverSeat = { x: driverX, y: floorY + 0.12, z: frontZ - 0.18 };
     g.userData.driverEye = {
       x: driverX,
@@ -152,9 +310,7 @@
     dst.scale.copy(src.scale);
     dst.visible = src.visible;
     dst.renderOrder = src.renderOrder || 0;
-    for (let i = 0; i < src.children.length; i++) {
-      dst.add(cloneVisual(src.children[i]));
-    }
+    for (let i = 0; i < src.children.length; i++) dst.add(cloneVisual(src.children[i]));
     return dst;
   }
 
@@ -162,15 +318,11 @@
     if (!car || !interior || !Game.player || !Game.player.o) return null;
     if (car.userData.gtaDriverProxy) return car.userData.gtaDriverProxy;
 
-    // Copy only renderable transforms/geometry/materials. Player.userData holds
-    // live Object3D references, so THREE.Object3D.clone(true) is intentionally
-    // avoided here; serialising that gameplay metadata can be circular.
     const clone = cloneVisual(Game.player.o);
     clone.name = 'gta02b-driver';
     clone.visible = true;
 
     clone.traverse(function (o) {
-      // The player's circular contact blob must never appear inside the cabin.
       if (o.isMesh && o.geometry && o.geometry.type === 'CircleGeometry') o.visible = false;
       if (o.isMesh) {
         o.castShadow = false;
@@ -179,9 +331,6 @@
     });
 
     const seat = interior.userData.driverSeat;
-    // Compress the standing rig into a readable seated silhouette. From the
-    // exterior it reads as the same hero; detailed limb IK is deliberately
-    // outside GTA-02B.
     clone.scale.set(0.78, 0.67, 0.78);
     clone.position.set(seat.x, seat.y - 0.03, seat.z - 0.08);
     clone.rotation.set(0, 0, 0);
@@ -191,6 +340,7 @@
   }
 
   function prepareCar(car) {
+    upgradeCabinShell(car);
     const interior = buildInterior(car);
     B.driver = makeDriverProxy(car, interior);
     B.car = car;
@@ -249,9 +399,6 @@
     B.view = B.view === 'cockpit' ? 'third' : 'cockpit';
     if (B.driver) B.driver.visible = B.view !== 'cockpit';
     syncViewButton();
-
-    // Returning outside should immediately hand the actual camera back to the
-    // GTA-02 vehicle camera so there is no one-frame jump.
     if (B.view === 'third' && Game.cam && Game.cam.snap) Game.cam.snap();
   }
 
@@ -289,13 +436,11 @@
     installDOM();
     global.addEventListener('keydown', onKeyDown);
     syncViewButton();
-    console.log('[GTA-02B] cabin + cockpit view ready');
+    console.log('[GTA-02B] real glazing + cabin + cockpit view ready');
   };
 
   B.toggleView = toggleView;
 
-  // Load after vehicles.js and observe its state transition rather than
-  // replacing GTA-02 internals. This keeps the presentation layer isolated.
   const originalInit = Game.init;
   Game.init = function () {
     const out = originalInit.apply(Game, arguments);
